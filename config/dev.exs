@@ -10,9 +10,9 @@ config :sortio, Sortio.Repo,
   show_sensitive_data_on_connection_error: true,
   stacktrace: true
 
-config :sortio, Sortio.Guardian,
+config :sortio, Sortio.Auth.Guardian,
   issuer: "sortio",
-  secret_key: "your-secret-key-here"
+  secret_key: "dev_secret_key_that_is_long_enough_for_guardian_to_work_properly_in_development"
 
 config :logger, level: :debug
 

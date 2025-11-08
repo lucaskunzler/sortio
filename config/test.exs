@@ -9,9 +9,9 @@ config :sortio, Sortio.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
-config :sortio, Sortio.Guardian,
+config :sortio, Sortio.Auth.Guardian,
   issuer: "sortio",
-  secret_key: "your-secret-key-here"
+  secret_key: "test_secret_key_that_is_long_enough_for_guardian_to_work_properly_in_tests"
 
 config :logger, level: :warning
 
