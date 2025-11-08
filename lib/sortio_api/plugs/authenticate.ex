@@ -3,6 +3,7 @@ defmodule SortioApi.Plugs.Authenticate do
   Plug to authenticate requests using JWT tokens.
   Expects the Authorization header with format: Bearer <token>
   """
+  require Logger
   import Plug.Conn
 
   alias Sortio.Auth.Guardian
@@ -16,6 +17,11 @@ defmodule SortioApi.Plugs.Authenticate do
         verify_token(conn, token)
 
       _ ->
+        Logger.warning("Authentication failed - missing or invalid authorization header",
+          path: conn.request_path,
+          method: conn.method
+        )
+
         conn
         |> ResponseHelpers.send_error("Missing or invalid authorization header", 401)
         |> halt()
@@ -27,15 +33,30 @@ defmodule SortioApi.Plugs.Authenticate do
       {:ok, claims} ->
         case Guardian.resource_from_claims(claims) do
           {:ok, user} ->
+            Logger.debug("Token validated successfully",
+              user_id: user.id,
+              path: conn.request_path
+            )
+
             assign(conn, :current_user, user)
 
-          {:error, _reason} ->
+          {:error, reason} ->
+            Logger.warning("Authentication failed - invalid token claims",
+              reason: reason,
+              path: conn.request_path
+            )
+
             conn
             |> ResponseHelpers.send_error("Invalid token", 401)
             |> halt()
         end
 
-      {:error, _reason} ->
+      {:error, reason} ->
+        Logger.warning("Authentication failed - token decode failed",
+          reason: reason,
+          path: conn.request_path
+        )
+
         conn
         |> ResponseHelpers.send_error("Invalid or expired token", 401)
         |> halt()

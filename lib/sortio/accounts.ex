@@ -2,6 +2,8 @@ defmodule Sortio.Accounts do
   @moduledoc """
   The Accounts context handles user management and authentication.
   """
+  require Logger
+
   alias Sortio.Repo
   alias Sortio.Accounts.User
 
@@ -12,9 +14,20 @@ defmodule Sortio.Accounts do
   end
 
   def register_user(attrs \\ %{}) do
-    %User{}
-    |> User.changeset(attrs)
-    |> Repo.insert()
+    result =
+      %User{}
+      |> User.changeset(attrs)
+      |> Repo.insert()
+
+    case result do
+      {:ok, user} ->
+        Logger.info("User registered successfully", user_id: user.id)
+        {:ok, user}
+
+      {:error, changeset} ->
+        Logger.warning("User registration failed", errors: inspect(changeset.errors))
+        {:error, changeset}
+    end
   end
 
   @doc """
@@ -26,12 +39,15 @@ defmodule Sortio.Accounts do
       nil ->
         # Run bcrypt to prevent timing attacks
         Bcrypt.no_user_verify()
+        Logger.warning("Login attempt failed - user not found")
         {:error, :invalid_credentials}
 
       user ->
         if verify_password(password, user.password_hash) do
+          Logger.info("User logged in successfully", user_id: user.id)
           {:ok, user}
         else
+          Logger.warning("Login attempt failed - invalid password", user_id: user.id)
           {:error, :invalid_credentials}
         end
     end
