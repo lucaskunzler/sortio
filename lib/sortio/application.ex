@@ -11,6 +11,7 @@ defmodule Sortio.Application do
     port = Application.get_env(:sortio, :port, 4000)
 
     children = [
+      Sortio.Repo,
       {Plug.Cowboy, scheme: :http, plug: SortioApi.Router, options: [port: port]}
     ]
 

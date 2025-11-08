@@ -28,6 +28,10 @@ defmodule Sortio.MixProject do
     [
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.0"},
+      {:ecto_sql, "~> 3.1"},
+      {:postgrex, "~> 0.21"},
+      {:bcrypt_elixir, "~> 3.3"},
+      {:guardian, "~> 2.4"},
 
       # Dev dependencies
       {:credo, "~> 1.0", only: [:dev, :test], runtime: false},
