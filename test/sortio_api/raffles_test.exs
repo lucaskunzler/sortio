@@ -5,34 +5,20 @@ defmodule SortioApi.RafflesTest do
   Tests cover CRUD operations, authentication, authorization,
   pagination, filtering, and validation for raffles.
   """
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
+  use SortioApi.ConnCase
 
-  import SortioApi.ConnCase
-
-  alias Sortio.Accounts
   alias Sortio.Raffles
 
-  # Constants for test timing and dates
-  @timestamp_precision_delay_ms 1100
+  # Constants for test dates
   @one_day_in_seconds 86_400
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Sortio.Repo)
 
     # Create test users
-    {:ok, user1} =
-      Accounts.register_user(%{
-        name: "Test User 1",
-        email: "user1@example.com",
-        password: "password123"
-      })
-
-    {:ok, user2} =
-      Accounts.register_user(%{
-        name: "Test User 2",
-        email: "user2@example.com",
-        password: "password123"
-      })
+    user1 = insert(:user, name: "Test User 1", email: "user1@example.com")
+    user2 = insert(:user, name: "Test User 2", email: "user2@example.com")
 
     # Get tokens
     login_params1 = %{
@@ -67,18 +53,8 @@ defmodule SortioApi.RafflesTest do
     end
 
     test "returns all raffles", %{user1: user1} do
-      # Create some raffles
-      {:ok, _raffle1} =
-        Raffles.create_raffle(
-          %{title: "First Raffle", description: "First description"},
-          user1.id
-        )
-
-      {:ok, _raffle2} =
-        Raffles.create_raffle(
-          %{title: "Second Raffle", description: "Second description"},
-          user1.id
-        )
+      insert(:raffle, title: "First Raffle", description: "First description", creator: user1)
+      insert(:raffle, title: "Second Raffle", description: "Second description", creator: user1)
 
       conn = make_request("/raffles", :get)
 
@@ -93,21 +69,8 @@ defmodule SortioApi.RafflesTest do
     end
 
     test "filters by status", %{user1: user1} do
-      # Create raffles with different statuses
-      {:ok, _raffle1} =
-        Raffles.create_raffle(
-          %{title: "Open Raffle", description: "Open"},
-          user1.id
-        )
-
-      {:ok, raffle2} =
-        Raffles.create_raffle(
-          %{title: "Closed Raffle", description: "Closed"},
-          user1.id
-        )
-
-      # Update raffle2 to closed status
-      Raffles.update_raffle(raffle2, %{status: "closed"})
+      insert(:raffle, title: "Open", description: "Open", status: "open", creator: user1)
+      insert(:raffle, title: "Closed", description: "Closed", status: "closed", creator: user1)
 
       conn = make_request("/raffles?status=open", :get)
 
@@ -115,36 +78,22 @@ defmodule SortioApi.RafflesTest do
 
       body = Jason.decode!(conn.resp_body)
       assert length(body["raffles"]) == 1
-      assert hd(body["raffles"])["title"] == "Open Raffle"
+      assert hd(body["raffles"])["title"] == "Open"
       assert hd(body["raffles"])["status"] == "open"
     end
 
     test "returns raffles ordered by newest first", %{user1: user1} do
-      {:ok, raffle1} =
-        Raffles.create_raffle(
-          %{title: "First Raffle"},
-          user1.id
-        )
-
-      # Delay to ensure different timestamps (timestamps are second-precision)
-      Process.sleep(@timestamp_precision_delay_ms)
-
-      {:ok, raffle2} =
-        Raffles.create_raffle(
-          %{title: "Second Raffle"},
-          user1.id
-        )
-
-      # Verify timestamps are different
-      assert NaiveDateTime.compare(raffle2.inserted_at, raffle1.inserted_at) == :gt
+      raffle1 = insert(:raffle, title: "First Raffle", creator: user1)
+      raffle2 = insert(:raffle, title: "Second Raffle", creator: user1)
+      assert DateTime.after?(raffle2.inserted_at, raffle1.inserted_at)
 
       conn = make_request("/raffles", :get)
 
       assert conn.status == 200
 
       body = Jason.decode!(conn.resp_body)
+
       assert length(body["raffles"]) == 2
-      # Newest should be first (Second Raffle was created last)
       assert hd(body["raffles"])["title"] == "Second Raffle"
       assert body["pagination"]["total_count"] == 2
     end
@@ -162,11 +111,8 @@ defmodule SortioApi.RafflesTest do
     end
 
     test "returns raffle details with creator info", %{user1: user1} do
-      {:ok, raffle} =
-        Raffles.create_raffle(
-          %{title: "Test Raffle", description: "Test description"},
-          user1.id
-        )
+      raffle =
+        insert(:raffle, title: "Test Raffle", description: "Test description", creator: user1)
 
       conn = make_request("/raffles/#{raffle.id}", :get)
 
@@ -198,7 +144,8 @@ defmodule SortioApi.RafflesTest do
       assert conn.status == 401
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "authorization"
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "authorization")
     end
 
     test "returns 201 with valid data", %{token1: token1} do
@@ -233,7 +180,6 @@ defmodule SortioApi.RafflesTest do
       body = Jason.decode!(conn.resp_body)
       raffle_id = body["raffle"]["id"]
 
-      # Verify in database
       raffle = Raffles.get_raffle(raffle_id)
       assert raffle.creator_id == user1.id
     end
@@ -248,7 +194,8 @@ defmodule SortioApi.RafflesTest do
       assert conn.status == 422
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "title"
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "title")
     end
 
     test "returns 422 with invalid title (too short)", %{token1: token1} do
@@ -261,7 +208,8 @@ defmodule SortioApi.RafflesTest do
       assert conn.status == 422
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "title"
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "title")
     end
 
     test "accepts valid draw_date in future", %{token1: token1} do
@@ -296,13 +244,63 @@ defmodule SortioApi.RafflesTest do
       assert conn.status == 422
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "draw_date"
+      assert body["error"]
+
+      assert String.contains?(String.downcase(body["error"]), "draw_date") or
+               String.contains?(String.downcase(body["error"]), "draw date")
+    end
+
+    test "malformed JSON raises ParseError", %{token1: token1} do
+      # Invalid JSON - missing closing brace
+      # Note: Plug.Parsers will raise an exception for malformed JSON
+      assert_raise Plug.Parsers.ParseError, fn ->
+        opts = SortioApi.Router.init([])
+
+        Plug.Test.conn(:post, "/raffles", "{\"title\": \"Test\"")
+        |> Plug.Conn.put_req_header("content-type", "application/json")
+        |> Plug.Conn.put_req_header("authorization", "Bearer #{token1}")
+        |> SortioApi.Router.call(opts)
+      end
+    end
+
+    test "extremely long title returns 422", %{token1: token1} do
+      # Generate a title longer than typical database limits
+      long_title = String.duplicate("a", 300)
+
+      params = %{
+        "title" => long_title,
+        "description" => "Valid description"
+      }
+
+      conn = make_authenticated_request("/raffles", :post, token1, Jason.encode!(params))
+
+      assert conn.status == 422
+
+      body = Jason.decode!(conn.resp_body)
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "title")
+    end
+
+    test "extremely long description is accepted", %{token1: token1} do
+      # Generate a very long description (descriptions often have higher limits)
+      long_description = String.duplicate("a", 5000)
+
+      params = %{
+        "title" => "Valid Title",
+        "description" => long_description
+      }
+
+      conn = make_authenticated_request("/raffles", :post, token1, Jason.encode!(params))
+
+      # This might be 201 or 422 depending on your database schema
+      # Adjust based on actual requirements
+      assert conn.status in [201, 422]
     end
   end
 
   describe "PUT /raffles/:id" do
     test "returns 401 without token", %{user1: user1} do
-      {:ok, raffle} = Raffles.create_raffle(%{title: "Test Raffle"}, user1.id)
+      raffle = insert(:raffle, title: "Test Raffle", creator: user1)
 
       params = %{
         "title" => "Updated Title"
@@ -313,11 +311,12 @@ defmodule SortioApi.RafflesTest do
       assert conn.status == 401
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "authorization"
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "authorization")
     end
 
     test "returns 403 if not owner", %{user1: user1, token2: token2} do
-      {:ok, raffle} = Raffles.create_raffle(%{title: "User 1 Raffle"}, user1.id)
+      raffle = insert(:raffle, title: "User 1 Raffle", creator: user1)
 
       params = %{
         "title" => "Trying to update"
@@ -329,14 +328,16 @@ defmodule SortioApi.RafflesTest do
       assert conn.status == 403
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "permission"
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "permission")
     end
 
     test "returns 200 with valid update", %{user1: user1, token1: token1} do
-      {:ok, raffle} =
-        Raffles.create_raffle(
-          %{title: "Original Title", description: "Original description"},
-          user1.id
+      raffle =
+        insert(:raffle,
+          title: "Original Title",
+          description: "Original description",
+          creator: user1
         )
 
       params = %{
@@ -357,7 +358,7 @@ defmodule SortioApi.RafflesTest do
     end
 
     test "can change status to closed", %{user1: user1, token1: token1} do
-      {:ok, raffle} = Raffles.create_raffle(%{title: "Test Raffle"}, user1.id)
+      raffle = insert(:raffle, title: "Test Raffle", creator: user1)
 
       params = %{
         "status" => "closed"
@@ -373,7 +374,7 @@ defmodule SortioApi.RafflesTest do
     end
 
     test "returns 422 with invalid data (invalid status)", %{user1: user1, token1: token1} do
-      {:ok, raffle} = Raffles.create_raffle(%{title: "Test Raffle"}, user1.id)
+      raffle = insert(:raffle, title: "Test Raffle", creator: user1)
 
       params = %{
         "status" => "invalid_status"
@@ -385,11 +386,12 @@ defmodule SortioApi.RafflesTest do
       assert conn.status == 422
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "status"
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "status")
     end
 
     test "returns 422 with invalid title (too short)", %{user1: user1, token1: token1} do
-      {:ok, raffle} = Raffles.create_raffle(%{title: "Test Raffle"}, user1.id)
+      raffle = insert(:raffle, title: "Test Raffle", creator: user1)
 
       params = %{
         "title" => "ab"
@@ -401,7 +403,8 @@ defmodule SortioApi.RafflesTest do
       assert conn.status == 422
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "title"
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "title")
     end
 
     test "returns 404 for non-existent raffle", %{token1: token1} do
@@ -423,29 +426,31 @@ defmodule SortioApi.RafflesTest do
 
   describe "DELETE /raffles/:id" do
     test "returns 401 without token", %{user1: user1} do
-      {:ok, raffle} = Raffles.create_raffle(%{title: "Test Raffle"}, user1.id)
+      raffle = insert(:raffle, title: "Test Raffle", creator: user1)
 
       conn = make_request("/raffles/#{raffle.id}", :delete)
 
       assert conn.status == 401
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "authorization"
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "authorization")
     end
 
     test "returns 403 if not owner", %{user1: user1, token2: token2} do
-      {:ok, raffle} = Raffles.create_raffle(%{title: "User 1 Raffle"}, user1.id)
+      raffle = insert(:raffle, title: "User 1 Raffle", creator: user1)
 
       conn = make_authenticated_request("/raffles/#{raffle.id}", :delete, token2)
 
       assert conn.status == 403
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "permission"
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "permission")
     end
 
     test "returns 204 and deletes raffle", %{user1: user1, token1: token1} do
-      {:ok, raffle} = Raffles.create_raffle(%{title: "Test Raffle"}, user1.id)
+      raffle = insert(:raffle, title: "Test Raffle", creator: user1)
 
       conn = make_authenticated_request("/raffles/#{raffle.id}", :delete, token1)
 

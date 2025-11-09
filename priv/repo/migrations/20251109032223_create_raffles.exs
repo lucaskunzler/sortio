@@ -10,7 +10,7 @@ defmodule Sortio.Repo.Migrations.CreateRaffles do
       add(:status, :string, null: false, default: "open")
       add(:creator_id, references(:users, on_delete: :restrict), null: false)
 
-      timestamps(type: :utc_datetime)
+      timestamps(type: :utc_datetime_usec)
     end
 
     create(index(:raffles, [:creator_id]))

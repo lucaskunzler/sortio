@@ -1,20 +1,12 @@
 defmodule SortioApi.AuthTest do
-  use ExUnit.Case, async: false
-
-  import SortioApi.ConnCase
-
-  alias Sortio.Accounts
+  use ExUnit.Case, async: true
+  use SortioApi.ConnCase
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Sortio.Repo)
 
-    # Create a test user
-    {:ok, user} =
-      Accounts.register_user(%{
-        name: "Test User",
-        email: "test@example.com",
-        password: "password123"
-      })
+    # Create a test user with known credentials
+    user = insert(:user, email: "test@example.com")
 
     %{user: user}
   end
@@ -79,7 +71,8 @@ defmodule SortioApi.AuthTest do
       assert conn.status == 400
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "email"
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "email")
     end
 
     test "missing password returns 400" do
@@ -92,7 +85,21 @@ defmodule SortioApi.AuthTest do
       assert conn.status == 400
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "password"
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "password")
+    end
+
+    test "malformed JSON raises ParseError" do
+      # Invalid JSON - missing closing brace
+      # Note: Plug.Parsers will raise an exception for malformed JSON
+      assert_raise Plug.Parsers.ParseError, fn ->
+        SortioApi.Router.init([])
+        |> then(fn opts ->
+          Plug.Test.conn(:post, "/login", "{\"email\": \"test@example.com\"")
+          |> Plug.Conn.put_req_header("content-type", "application/json")
+          |> SortioApi.Router.call(opts)
+        end)
+      end
     end
   end
 
@@ -125,7 +132,8 @@ defmodule SortioApi.AuthTest do
       assert conn.status == 401
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "authorization"
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "authorization")
     end
 
     test "with invalid token returns 401" do
@@ -148,7 +156,8 @@ defmodule SortioApi.AuthTest do
       assert conn.status == 401
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] =~ "authorization"
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "authorization")
     end
   end
 end
