@@ -8,12 +8,15 @@ defmodule Sortio.Accounts do
   alias Sortio.Accounts.User
   alias Sortio.ContextHelpers
 
+  @spec get_user(Ecto.UUID.t()) :: User.t() | nil
   def get_user(id), do: Repo.get(User, id)
 
+  @spec get_user_by_email(String.t()) :: User.t() | nil
   def get_user_by_email(email) do
     Repo.get_by(User, email: email)
   end
 
+  @spec register_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def register_user(attrs \\ %{}) do
     ContextHelpers.with_logging(
       fn ->
@@ -31,6 +34,8 @@ defmodule Sortio.Accounts do
   Authenticates a user with email and password.
   Returns {:ok, user} if credentials are valid, {:error, reason} otherwise.
   """
+  @spec authenticate_user(String.t(), String.t()) ::
+          {:ok, User.t()} | {:error, :invalid_credentials}
   def authenticate_user(email, password) do
     case get_user_by_email(email) do
       nil ->
@@ -50,6 +55,7 @@ defmodule Sortio.Accounts do
     end
   end
 
+  @spec verify_password(String.t(), String.t()) :: boolean()
   defp verify_password(password, password_hash) do
     Bcrypt.verify_pass(password, password_hash)
   end

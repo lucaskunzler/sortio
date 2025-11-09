@@ -9,8 +9,12 @@ defmodule SortioApi.Plugs.Authenticate do
   alias Sortio.Auth.Guardian
   alias SortioApi.Helpers.ResponseHelpers
 
+  @behaviour Plug
+
+  @spec init(keyword()) :: keyword()
   def init(opts), do: opts
 
+  @spec call(Plug.Conn.t(), keyword()) :: Plug.Conn.t()
   def call(conn, _opts) do
     case get_req_header(conn, "authorization") do
       ["Bearer " <> token] ->
@@ -28,6 +32,7 @@ defmodule SortioApi.Plugs.Authenticate do
     end
   end
 
+  @spec verify_token(Plug.Conn.t(), String.t()) :: Plug.Conn.t()
   defp verify_token(conn, token) do
     case Guardian.decode_and_verify(token) do
       {:ok, claims} ->

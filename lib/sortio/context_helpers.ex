@@ -8,6 +8,7 @@ defmodule Sortio.ContextHelpers do
 
   require Logger
 
+  @type operation :: (-> {:ok, term()} | {:error, term()})
   @doc """
   Wraps a repository operation with success/error logging.
 
@@ -26,6 +27,8 @@ defmodule Sortio.ContextHelpers do
         user_id: user.id
       )
   """
+  @spec with_logging(operation(), String.t(), String.t(), keyword()) ::
+          {:ok, term()} | {:error, term()}
   def with_logging(operation, success_message, error_message, metadata \\ []) do
     case operation.() do
       {:ok, result} ->
