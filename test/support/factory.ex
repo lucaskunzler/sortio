@@ -6,6 +6,7 @@ defmodule Sortio.Factory do
 
   alias Sortio.Accounts.User
   alias Sortio.Raffles.Raffle
+  alias Sortio.Raffles.Participant
 
   def user_factory do
     %User{
@@ -21,6 +22,13 @@ defmodule Sortio.Factory do
       description: "Test description",
       status: "open",
       creator: build(:user)
+    }
+  end
+
+  def participant_factory do
+    %Participant{
+      user: build(:user),
+      raffle: build(:raffle)
     }
   end
 end

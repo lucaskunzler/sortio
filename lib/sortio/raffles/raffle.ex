@@ -37,6 +37,8 @@ defmodule Sortio.Raffles.Raffle do
 
     belongs_to(:creator, Sortio.Accounts.User, foreign_key: :creator_id)
 
+    has_many(:participants, Sortio.Raffles.Participant)
+
     timestamps(type: :utc_datetime_usec)
   end
 

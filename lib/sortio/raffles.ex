@@ -9,6 +9,7 @@ defmodule Sortio.Raffles do
 
   alias Sortio.Repo
   alias Sortio.Raffles.Raffle
+  alias Sortio.Raffles.Participant
   alias Sortio.Accounts.User
   alias Sortio.ContextHelpers
 
@@ -112,4 +113,134 @@ defmodule Sortio.Raffles do
   end
 
   defp maybe_filter_by_status(query, _), do: query
+
+  @spec join_raffle(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, Participant.t()}
+          | {:error, Ecto.Changeset.t()}
+          | {:error, :not_found}
+          | {:error, :raffle_closed}
+  @doc """
+  Adds a user as a participant to a raffle.
+
+  ## Parameters
+    - raffle_id: The UUID of the raffle to join
+    - user_id: The UUID of the user joining the raffle
+
+  ## Returns
+    - {:ok, participant} if successful
+    - {:error, changeset} if validation fails (e.g., already joined)
+    - {:error, :not_found} if raffle doesn't exist
+    - {:error, :raffle_closed} if raffle is closed
+  """
+  def join_raffle(raffle_id, user_id) do
+    with {:ok, raffle} <- get_raffle(raffle_id),
+         :ok <- validate_raffle_open(raffle) do
+      ContextHelpers.with_logging(
+        fn ->
+          %Participant{}
+          |> Participant.create_changeset(%{raffle_id: raffle_id, user_id: user_id})
+          |> Repo.insert()
+        end,
+        "User joined raffle successfully",
+        "Failed to join raffle",
+        raffle_id: raffle_id,
+        user_id: user_id
+      )
+    end
+  end
+
+  @spec validate_raffle_open(Raffle.t()) :: :ok | {:error, :raffle_closed}
+  defp validate_raffle_open(%Raffle{status: "open"}), do: :ok
+  defp validate_raffle_open(%Raffle{status: "closed"}), do: {:error, :raffle_closed}
+
+  @spec leave_raffle(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, Participant.t()} | {:error, :not_found}
+  @doc """
+  Removes a user from a raffle's participants.
+
+  ## Parameters
+    - raffle_id: The UUID of the raffle to leave
+    - user_id: The UUID of the user leaving the raffle
+
+  ## Returns
+    - {:ok, participant} if successful
+    - {:error, :not_found} if participation doesn't exist
+  """
+  def leave_raffle(raffle_id, user_id) do
+    query =
+      from(p in Participant,
+        where: p.raffle_id == ^raffle_id and p.user_id == ^user_id
+      )
+
+    case Repo.one(query) do
+      nil ->
+        {:error, :not_found}
+
+      participant ->
+        ContextHelpers.with_logging(
+          fn -> Repo.delete(participant) end,
+          "User left raffle successfully",
+          "Failed to leave raffle",
+          raffle_id: raffle_id,
+          user_id: user_id
+        )
+    end
+  end
+
+  @spec list_participants(Ecto.UUID.t()) :: [Participant.t()]
+  @doc """
+  Lists all participants for a given raffle.
+
+  ## Parameters
+    - raffle_id: The UUID of the raffle
+
+  ## Returns
+    - List of participants with preloaded user data
+  """
+  def list_participants(raffle_id) do
+    from(p in Participant,
+      where: p.raffle_id == ^raffle_id,
+      order_by: [desc: p.inserted_at]
+    )
+    |> Repo.all()
+    |> Repo.preload(:user)
+  end
+
+  @spec get_participant_count(Ecto.UUID.t()) :: non_neg_integer()
+  @doc """
+  Returns the count of participants for a raffle.
+
+  ## Parameters
+    - raffle_id: The UUID of the raffle
+
+  ## Returns
+    - The number of participants
+  """
+  def get_participant_count(raffle_id) do
+    from(p in Participant,
+      where: p.raffle_id == ^raffle_id,
+      select: count(p.id)
+    )
+    |> Repo.one()
+  end
+
+  @spec user_participating?(Ecto.UUID.t(), Ecto.UUID.t()) :: boolean()
+  @doc """
+  Checks if a user is participating in a raffle.
+
+  ## Parameters
+    - raffle_id: The UUID of the raffle
+    - user_id: The UUID of the user
+
+  ## Returns
+    - true if user is participating, false otherwise
+  """
+  def user_participating?(raffle_id, user_id) do
+    query =
+      from(p in Participant,
+        where: p.raffle_id == ^raffle_id and p.user_id == ^user_id
+      )
+
+    Repo.exists?(query)
+  end
 end

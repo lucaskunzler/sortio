@@ -9,7 +9,7 @@ defmodule SortioApi.Router do
   """
   use Plug.Router
 
-  alias SortioApi.Controllers.{AuthController, RaffleController}
+  alias SortioApi.Controllers.{AuthController, RaffleController, ParticipantController}
   alias SortioApi.Helpers.{ResponseHelpers, AuthenticationHelpers}
 
   plug(Plug.Logger)
@@ -80,6 +80,30 @@ defmodule SortioApi.Router do
     |> case do
       %{halted: true} = conn -> conn
       conn -> RaffleController.delete(conn, id)
+    end
+  end
+
+  # Participant endpoints - Public
+  get "/raffles/:id/participants" do
+    ParticipantController.list(conn, id)
+  end
+
+  # Participant endpoints - Authenticated
+  post "/raffles/:id/join" do
+    conn
+    |> AuthenticationHelpers.with_authentication()
+    |> case do
+      %{halted: true} = conn -> conn
+      conn -> ParticipantController.join(conn, id)
+    end
+  end
+
+  delete "/raffles/:id/leave" do
+    conn
+    |> AuthenticationHelpers.with_authentication()
+    |> case do
+      %{halted: true} = conn -> conn
+      conn -> ParticipantController.leave(conn, id)
     end
   end
 
