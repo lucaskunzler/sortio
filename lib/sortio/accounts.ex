@@ -6,6 +6,7 @@ defmodule Sortio.Accounts do
 
   alias Sortio.Repo
   alias Sortio.Accounts.User
+  alias Sortio.ContextHelpers
 
   def get_user(id), do: Repo.get(User, id)
 
@@ -14,20 +15,16 @@ defmodule Sortio.Accounts do
   end
 
   def register_user(attrs \\ %{}) do
-    result =
-      %User{}
-      |> User.changeset(attrs)
-      |> Repo.insert()
-
-    case result do
-      {:ok, user} ->
-        Logger.info("User registered successfully", user_id: user.id)
-        {:ok, user}
-
-      {:error, changeset} ->
-        Logger.warning("User registration failed", errors: inspect(changeset.errors))
-        {:error, changeset}
-    end
+    ContextHelpers.with_logging(
+      fn ->
+        %User{}
+        |> User.changeset(attrs)
+        |> Repo.insert()
+      end,
+      "User registered successfully",
+      "User registration failed",
+      []
+    )
   end
 
   @doc """

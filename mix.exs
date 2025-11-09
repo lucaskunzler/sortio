@@ -35,7 +35,8 @@ defmodule Sortio.MixProject do
 
       # Dev dependencies
       {:credo, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false}
+      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
+      {:ex_machina, "~> 2.8", only: :test, runtime: false}
     ]
   end
 end

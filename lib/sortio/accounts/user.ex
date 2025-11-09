@@ -11,7 +11,8 @@ defmodule Sortio.Accounts.User do
           email: String.t(),
           password_hash: String.t(),
           inserted_at: DateTime.t(),
-          updated_at: DateTime.t()
+          updated_at: DateTime.t(),
+          raffles: [Sortio.Raffles.Raffle.t()] | Ecto.Association.NotLoaded.t()
         }
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -24,6 +25,8 @@ defmodule Sortio.Accounts.User do
     field(:password, :string, virtual: true, redact: true)
 
     timestamps(type: :utc_datetime)
+
+    has_many(:raffles, Sortio.Raffles.Raffle, foreign_key: :creator_id)
   end
 
   @doc """
