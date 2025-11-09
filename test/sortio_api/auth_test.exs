@@ -61,32 +61,32 @@ defmodule SortioApi.AuthTest do
       assert body["error"] == "Invalid email or password"
     end
 
-    test "missing email returns 400" do
+    test "missing email returns 422" do
       params = %{
         "password" => "password123"
       }
 
       conn = make_request("/login", :post, Jason.encode!(params))
 
-      assert conn.status == 400
+      assert conn.status == 422
 
       body = Jason.decode!(conn.resp_body)
       assert body["error"]
-      assert String.contains?(String.downcase(body["error"]), "email")
+      assert String.contains?(String.downcase(body["error"]), "missing required fields")
     end
 
-    test "missing password returns 400" do
+    test "missing password returns 422" do
       params = %{
         "email" => "test@example.com"
       }
 
       conn = make_request("/login", :post, Jason.encode!(params))
 
-      assert conn.status == 400
+      assert conn.status == 422
 
       body = Jason.decode!(conn.resp_body)
       assert body["error"]
-      assert String.contains?(String.downcase(body["error"]), "password")
+      assert String.contains?(String.downcase(body["error"]), "missing required fields")
     end
 
     test "malformed JSON raises ParseError" do
