@@ -11,7 +11,7 @@
 - Business logic in presentation layer - Keep router thin, logic in contexts
 - Missing pagination - Unbounded queries exhaust resources at scale
 
-## Not implemented now
+## Not implemented in this POC
 - Email verification
 - Password reset
 - Token expiration and invalidation
@@ -19,3 +19,4 @@
 - Rate limiting on login
 - Account lockout after failed attempts
 - Cursor-based pagination for scale
+- CORS headers (needed for use with frontend apps)

@@ -82,6 +82,7 @@ defmodule Sortio.Raffles.Raffle do
   def update_changeset(raffle, attrs) do
     raffle
     |> cast(attrs, [:title, :description, :draw_date, :status])
+    |> validate_required([:title])
     |> apply_common_validations()
     |> validate_inclusion(:status, @valid_statuses)
   end

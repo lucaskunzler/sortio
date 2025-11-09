@@ -14,14 +14,17 @@ defmodule SortioApi.Controllers.RaffleController do
   alias SortioApi.Helpers.ResponseHelpers
   alias SortioApi.Views.RaffleView
 
+  @default_page 1
+  @default_page_size 20
+
   @spec index(Plug.Conn.t()) :: Plug.Conn.t()
   @doc """
   GET /raffles - List raffles with optional filtering and pagination.
   """
   def index(conn) do
     status = conn.query_params["status"]
-    page = parse_positive_integer(conn.query_params["page"], 1)
-    page_size = parse_positive_integer(conn.query_params["page_size"], 20)
+    page = parse_positive_integer(conn.query_params["page"], @default_page)
+    page_size = parse_positive_integer(conn.query_params["page_size"], @default_page_size)
 
     query_opts =
       []
