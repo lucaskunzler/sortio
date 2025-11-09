@@ -81,7 +81,7 @@ defmodule SortioApi.Router do
 
   get "/raffles/:id" do
     with :ok <- validate_uuid(id),
-         {:ok, raffle} <- fetch_raffle(id) do
+         {:ok, raffle} <- Raffles.get_raffle(id) do
       send_success(conn, %{"raffle" => format_raffle(raffle)}, 200)
     else
       {:error, :invalid_uuid} ->
@@ -94,7 +94,7 @@ defmodule SortioApi.Router do
 
   post "/raffles" do
     with_authentication(conn, fn conn, user ->
-      with {:ok, params} <- validate_raffle_params(conn.body_params),
+      with {:ok, params} <- parse_raffle_params(conn.body_params),
            {:ok, raffle} <- Raffles.create_raffle(params, user.id) do
         send_success(conn, %{"raffle" => format_raffle(raffle)}, 201)
       else
@@ -106,22 +106,12 @@ defmodule SortioApi.Router do
   put "/raffles/:id" do
     with_authentication(conn, fn conn, user ->
       with :ok <- validate_uuid(id),
-           {:ok, raffle} <- fetch_raffle(id),
+           {:ok, raffle} <- Raffles.get_raffle(id),
            :ok <- authorize_raffle_owner(raffle, user),
            {:ok, updated_raffle} <- Raffles.update_raffle(raffle, conn.body_params) do
         send_success(conn, %{"raffle" => format_raffle(updated_raffle)}, 200)
       else
-        {:error, :invalid_uuid} ->
-          send_error(conn, "Invalid raffle ID format", 400)
-
-        {:error, :not_found} ->
-          send_error(conn, "Raffle not found", 404)
-
-        {:error, :forbidden} ->
-          send_error(conn, "You don't have permission to update this raffle", 403)
-
-        {:error, error} ->
-          send_error(conn, error, 422)
+        {:error, error} -> handle_raffle_error(conn, error)
       end
     end)
   end
@@ -129,22 +119,12 @@ defmodule SortioApi.Router do
   delete "/raffles/:id" do
     with_authentication(conn, fn conn, user ->
       with :ok <- validate_uuid(id),
-           {:ok, raffle} <- fetch_raffle(id),
+           {:ok, raffle} <- Raffles.get_raffle(id),
            :ok <- authorize_raffle_owner(raffle, user),
            {:ok, _raffle} <- Raffles.delete_raffle(raffle) do
         send_json(conn, 204, nil)
       else
-        {:error, :invalid_uuid} ->
-          send_error(conn, "Invalid raffle ID format", 400)
-
-        {:error, :not_found} ->
-          send_error(conn, "Raffle not found", 404)
-
-        {:error, :forbidden} ->
-          send_error(conn, "You don't have permission to delete this raffle", 403)
-
-        {:error, error} ->
-          send_error(conn, error, 422)
+        {:error, error} -> handle_raffle_error(conn, error)
       end
     end)
   end
@@ -202,24 +182,18 @@ defmodule SortioApi.Router do
     }
   end
 
-  defp validate_raffle_params(params) do
-    title = Map.get(params, "title")
+  defp parse_raffle_params(params) do
+    case parse_draw_date(Map.get(params, "draw_date")) do
+      {:ok, draw_date} ->
+        {:ok,
+         %{
+           title: Map.get(params, "title"),
+           description: Map.get(params, "description"),
+           draw_date: draw_date
+         }}
 
-    if title do
-      case parse_draw_date(Map.get(params, "draw_date")) do
-        {:ok, draw_date} ->
-          {:ok,
-           %{
-             title: title,
-             description: Map.get(params, "description"),
-             draw_date: draw_date
-           }}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
-    else
-      {:error, "Missing required field: title"}
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -279,18 +253,27 @@ defmodule SortioApi.Router do
     end
   end
 
-  defp fetch_raffle(id) do
-    case Raffles.get_raffle(id) do
-      nil -> {:error, :not_found}
-      raffle -> {:ok, raffle}
-    end
-  end
-
   defp authorize_raffle_owner(raffle, user) do
     if Raffles.user_owns_raffle?(raffle, user) do
       :ok
     else
       {:error, :forbidden}
+    end
+  end
+
+  defp handle_raffle_error(conn, error) do
+    case error do
+      :invalid_uuid ->
+        send_error(conn, "Invalid raffle ID", 400)
+
+      :not_found ->
+        send_error(conn, "Raffle not found", 404)
+
+      :forbidden ->
+        send_error(conn, "You don't have permission to modify this raffle", 403)
+
+      error ->
+        send_error(conn, error, 422)
     end
   end
 end

@@ -44,8 +44,10 @@ defmodule Sortio.Raffles do
   end
 
   def get_raffle(id) do
-    Repo.get(Raffle, id)
-    |> Repo.preload(:creator)
+    case Repo.get(Raffle, id) do
+      nil -> {:error, :not_found}
+      raffle -> {:ok, Repo.preload(raffle, :creator)}
+    end
   end
 
   def create_raffle(attrs, creator_id) do

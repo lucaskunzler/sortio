@@ -180,8 +180,9 @@ defmodule SortioApi.RafflesTest do
       body = Jason.decode!(conn.resp_body)
       raffle_id = body["raffle"]["id"]
 
-      raffle = Raffles.get_raffle(raffle_id)
-      assert raffle.creator_id == user1.id
+      {:ok, raffle} = Raffles.get_raffle(raffle_id)
+
+      assert raffle.creator == user1
     end
 
     test "returns 422 with missing title", %{token1: token1} do
@@ -456,8 +457,7 @@ defmodule SortioApi.RafflesTest do
 
       assert conn.status == 204
 
-      # Verify raffle is deleted
-      assert Raffles.get_raffle(raffle.id) == nil
+      assert Raffles.get_raffle(raffle.id) == {:error, :not_found}
     end
 
     test "returns 404 for non-existent raffle", %{token1: token1} do

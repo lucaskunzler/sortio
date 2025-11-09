@@ -11,7 +11,8 @@ defmodule Sortio.Accounts.User do
           email: String.t(),
           password_hash: String.t(),
           inserted_at: DateTime.t(),
-          updated_at: DateTime.t()
+          updated_at: DateTime.t(),
+          raffles: [Sortio.Raffles.Raffle.t()] | Ecto.Association.NotLoaded.t()
         }
 
   @primary_key {:id, :binary_id, autogenerate: true}

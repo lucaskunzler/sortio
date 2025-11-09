@@ -32,9 +32,15 @@ defmodule Sortio.ContextHelpers do
         Logger.info(success_message, metadata)
         {:ok, result}
 
-      {:error, changeset} ->
-        Logger.warning(error_message, Keyword.merge(metadata, errors: inspect(changeset.errors)))
-        {:error, changeset}
+      {:error, error} ->
+        error_details =
+          case error do
+            %Ecto.Changeset{} -> inspect(error.errors)
+            other -> inspect(other)
+          end
+
+        Logger.warning(error_message, Keyword.merge(metadata, errors: error_details))
+        {:error, error}
     end
   end
 end
