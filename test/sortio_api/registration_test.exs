@@ -6,7 +6,7 @@ defmodule SortioApi.RegistrationTest do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Sortio.Repo)
   end
 
-  describe "POST /users/" do
+  describe "POST /register/" do
     test "valid registration returns 201 with user data" do
       params = %{
         "name" => "Test User",
@@ -14,7 +14,7 @@ defmodule SortioApi.RegistrationTest do
         "password" => "password123"
       }
 
-      conn = make_request("/users", :post, Jason.encode!(params))
+      conn = make_request("/register", :post, Jason.encode!(params))
 
       assert conn.status == 201
 
@@ -35,7 +35,7 @@ defmodule SortioApi.RegistrationTest do
       }
 
       # Create first user
-      conn = make_request("/users", :post, Jason.encode!(params))
+      conn = make_request("/register", :post, Jason.encode!(params))
       assert conn.status == 201
 
       # Attempt to create user with same email
@@ -45,7 +45,7 @@ defmodule SortioApi.RegistrationTest do
         "password" => "password456"
       }
 
-      conn = make_request("/users", :post, Jason.encode!(params2))
+      conn = make_request("/register", :post, Jason.encode!(params2))
 
       assert conn.status == 422
 
@@ -61,7 +61,7 @@ defmodule SortioApi.RegistrationTest do
         "password" => "password123"
       }
 
-      conn = make_request("/users", :post, Jason.encode!(params))
+      conn = make_request("/register", :post, Jason.encode!(params))
 
       assert conn.status == 422
 
@@ -77,7 +77,7 @@ defmodule SortioApi.RegistrationTest do
         "password" => "123"
       }
 
-      conn = make_request("/users", :post, Jason.encode!(params))
+      conn = make_request("/register", :post, Jason.encode!(params))
 
       assert conn.status == 422
 
@@ -93,7 +93,7 @@ defmodule SortioApi.RegistrationTest do
         "password" => "password123"
       }
 
-      conn = make_request("/users", :post, Jason.encode!(params1))
+      conn = make_request("/register", :post, Jason.encode!(params1))
       assert conn.status == 422
       body = Jason.decode!(conn.resp_body)
       assert body["error"]
@@ -105,7 +105,7 @@ defmodule SortioApi.RegistrationTest do
         "email" => "test@example.com"
       }
 
-      conn = make_request("/users", :post, Jason.encode!(params2))
+      conn = make_request("/register", :post, Jason.encode!(params2))
       assert conn.status == 422
       body = Jason.decode!(conn.resp_body)
       assert body["error"]
@@ -117,7 +117,7 @@ defmodule SortioApi.RegistrationTest do
         "password" => "password123"
       }
 
-      conn = make_request("/users", :post, Jason.encode!(params3))
+      conn = make_request("/register", :post, Jason.encode!(params3))
       assert conn.status == 422
       body = Jason.decode!(conn.resp_body)
       assert body["error"]
@@ -130,7 +130,7 @@ defmodule SortioApi.RegistrationTest do
       assert_raise Plug.Parsers.ParseError, fn ->
         SortioApi.Router.init([])
         |> then(fn opts ->
-          Plug.Test.conn(:post, "/users", "{\"name\": \"Test\"")
+          Plug.Test.conn(:post, "/register", "{\"name\": \"Test\"")
           |> Plug.Conn.put_req_header("content-type", "application/json")
           |> SortioApi.Router.call(opts)
         end)
@@ -138,7 +138,7 @@ defmodule SortioApi.RegistrationTest do
     end
 
     test "empty JSON object returns 422" do
-      conn = make_request("/users", :post, Jason.encode!(%{}))
+      conn = make_request("/register", :post, Jason.encode!(%{}))
 
       assert conn.status == 422
 
@@ -146,7 +146,7 @@ defmodule SortioApi.RegistrationTest do
       assert body["error"]
     end
 
-    test "extremely long name is caught by database constraint" do
+    test "extremely long name returns 422" do
       # Generate a name longer than typical database limits (e.g., 255 chars)
       long_name = String.duplicate("a", 300)
 
@@ -156,11 +156,13 @@ defmodule SortioApi.RegistrationTest do
         "password" => "password123"
       }
 
-      # Database constraint will catch this and raise an error
-      # In production, this should be caught by application-level validation
-      assert_raise Plug.Conn.WrapperError, fn ->
-        make_request("/users", :post, Jason.encode!(params))
-      end
+      conn = make_request("/register", :post, Jason.encode!(params))
+
+      assert conn.status == 422
+
+      body = Jason.decode!(conn.resp_body)
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "name")
     end
 
     test "extremely long email returns 422" do
@@ -173,7 +175,7 @@ defmodule SortioApi.RegistrationTest do
         "password" => "password123"
       }
 
-      conn = make_request("/users", :post, Jason.encode!(params))
+      conn = make_request("/register", :post, Jason.encode!(params))
 
       assert conn.status == 422
 

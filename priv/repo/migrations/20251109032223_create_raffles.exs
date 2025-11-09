@@ -3,7 +3,7 @@ defmodule Sortio.Repo.Migrations.CreateRaffles do
 
   def change do
     create table(:raffles, primary_key: false) do
-      add(:id, :uuid, primary_key: true)
+      add(:id, :binary_id, primary_key: true)
       add(:title, :string, null: false)
       add(:description, :text)
       add(:draw_date, :utc_datetime)

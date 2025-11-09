@@ -10,7 +10,7 @@ defmodule Sortio.Repo.Migrations.CreateUsers do
       add(:email, :citext, null: false)
       add(:password_hash, :string, null: false)
 
-      timestamps(type: :utc_datetime)
+      timestamps(type: :utc_datetime_usec)
     end
 
     create(unique_index(:users, [:email]))

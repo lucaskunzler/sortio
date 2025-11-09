@@ -21,8 +21,8 @@ defmodule Sortio.Raffles.Raffle do
           updated_at: DateTime.t()
         }
 
-  @primary_key {:id, :binary_id, autogenerate: true}
-  @foreign_key_type :binary_id
+  @primary_key {:id, Uniq.UUID, autogenerate: true, version: 7}
+  @foreign_key_type Uniq.UUID
 
   @valid_statuses ~w(open closed drawing drawn)
   @title_min_length 3
