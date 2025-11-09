@@ -97,7 +97,7 @@ defmodule SortioApi.RegistrationTest do
       assert conn.status == 422
       body = Jason.decode!(conn.resp_body)
       assert body["error"]
-      assert String.contains?(String.downcase(body["error"]), "email")
+      assert String.contains?(String.downcase(body["error"]), "missing required fields")
 
       # Missing password
       params2 = %{
@@ -109,7 +109,7 @@ defmodule SortioApi.RegistrationTest do
       assert conn.status == 422
       body = Jason.decode!(conn.resp_body)
       assert body["error"]
-      assert String.contains?(String.downcase(body["error"]), "password")
+      assert String.contains?(String.downcase(body["error"]), "missing required fields")
 
       # Missing name
       params3 = %{
@@ -121,7 +121,7 @@ defmodule SortioApi.RegistrationTest do
       assert conn.status == 422
       body = Jason.decode!(conn.resp_body)
       assert body["error"]
-      assert String.contains?(String.downcase(body["error"]), "name")
+      assert String.contains?(String.downcase(body["error"]), "missing required fields")
     end
 
     test "malformed JSON raises ParseError" do

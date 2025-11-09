@@ -27,7 +27,7 @@ defmodule SortioApi.Controllers.AuthController do
       )
     else
       {:error, error} ->
-        ResponseHelpers.send_error(conn, error, 422)
+        handle_error(conn, error, 422)
     end
   end
 
@@ -48,11 +48,8 @@ defmodule SortioApi.Controllers.AuthController do
         200
       )
     else
-      {:error, :invalid_credentials} ->
-        ResponseHelpers.send_error(conn, "Invalid email or password", 401)
-
       {:error, error} ->
-        ResponseHelpers.send_error(conn, error, 400)
+        handle_error(conn, error, 400)
     end
   end
 
@@ -78,7 +75,7 @@ defmodule SortioApi.Controllers.AuthController do
          {:ok, password} <- Map.fetch(params, "password") do
       {:ok, %{name: name, email: email, password: password}}
     else
-      :error -> {:error, "Missing required fields: name, email, password"}
+      :error -> {:error, :missing_required_fields}
     end
   end
 
@@ -87,7 +84,23 @@ defmodule SortioApi.Controllers.AuthController do
          {:ok, password} <- Map.fetch(params, "password") do
       {:ok, %{email: email, password: password}}
     else
-      :error -> {:error, "Missing required fields: email, password"}
+      :error -> {:error, :missing_required_fields}
+    end
+  end
+
+  defp handle_error(conn, error, default_status) do
+    case error do
+      :invalid_credentials ->
+        ResponseHelpers.send_error(conn, "Invalid email or password", 401)
+
+      :missing_required_fields ->
+        ResponseHelpers.send_error(conn, "Missing required fields", 422)
+
+      %Ecto.Changeset{} = changeset ->
+        ResponseHelpers.send_error(conn, changeset, 422)
+
+      _other ->
+        ResponseHelpers.send_error(conn, "An error occurred", default_status)
     end
   end
 end

@@ -182,18 +182,23 @@ defmodule SortioApi.Controllers.RaffleController do
   defp maybe_put(keyword, key, value), do: Keyword.put(keyword, key, value)
 
   defp handle_error(conn, error) do
+    {message, status} = error_to_response(error)
+    ResponseHelpers.send_error(conn, message, status)
+  end
+
+  defp error_to_response(error) do
     case error do
       :invalid_uuid ->
-        ResponseHelpers.send_error(conn, "Invalid raffle ID", 400)
+        {"Invalid raffle ID format", 400}
 
       :not_found ->
-        ResponseHelpers.send_error(conn, "Raffle not found", 404)
+        {"Raffle not found", 404}
 
       :forbidden ->
-        ResponseHelpers.send_error(conn, "You don't have permission to modify this raffle", 403)
+        {"You don't have permission to modify this raffle", 403}
 
-      error ->
-        ResponseHelpers.send_error(conn, error, 422)
+      %Ecto.Changeset{} = changeset ->
+        {changeset, 422}
     end
   end
 end
