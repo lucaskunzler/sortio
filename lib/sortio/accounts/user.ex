@@ -27,6 +27,7 @@ defmodule Sortio.Accounts.User do
     timestamps(type: :utc_datetime_usec)
 
     has_many(:raffles, Sortio.Raffles.Raffle, foreign_key: :creator_id)
+    has_many(:participants, Sortio.Raffles.Participant)
   end
 
   @doc """

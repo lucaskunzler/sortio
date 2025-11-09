@@ -40,3 +40,6 @@ mix test
 - `POST /raffles` - Create raffle (authenticated)
 - `PUT /raffles/:id` - Update raffle (authenticated, owner only)
 - `DELETE /raffles/:id` - Delete raffle (authenticated, owner only)
+- `GET /raffles/:raffle_id/participants` - List raffle participants (paginated)
+- `POST /raffles/:raffle_id/participants` - Join a raffle
+- `DELETE /raffles/:raffle_id/participants/me` - Leave a raffle

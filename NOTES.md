@@ -20,3 +20,5 @@
 - Account lockout after failed attempts
 - Cursor-based pagination for scale
 - CORS headers (needed for use with frontend apps)
+- Limit number of participants per raffle
+- Soft deletes for participant records

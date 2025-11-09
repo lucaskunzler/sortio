@@ -9,48 +9,19 @@ defmodule Sortio.Raffles do
 
   alias Sortio.Repo
   alias Sortio.Raffles.Raffle
+  alias Sortio.Raffles.Participant
   alias Sortio.Accounts.User
   alias Sortio.ContextHelpers
+  alias Sortio.Pagination
 
-  @default_page_size 20
-  @max_page_size 100
-
-  @type pagination_result :: %{
-          entries: [Raffle.t()],
-          page: pos_integer(),
-          page_size: pos_integer(),
-          total_count: non_neg_integer(),
-          total_pages: non_neg_integer()
-        }
+  @type pagination_result :: Pagination.pagination_result(Raffle.t())
 
   @spec list_raffles(keyword()) :: pagination_result()
   def list_raffles(opts \\ []) do
-    page = max(Keyword.get(opts, :page, 1), 1)
-    page_size = opts[:page_size] || @default_page_size
-    page_size = min(page_size, @max_page_size)
-
-    query =
-      from(r in Raffle)
-      |> maybe_filter_by_status(opts[:status])
-      |> order_by([r], desc: r.id)
-
-    total_count = Repo.aggregate(query, :count, :id)
-    total_pages = ceil(total_count / page_size)
-
-    entries =
-      query
-      |> limit(^page_size)
-      |> offset(^((page - 1) * page_size))
-      |> Repo.all()
-      |> Repo.preload(:creator)
-
-    %{
-      entries: entries,
-      page: page,
-      page_size: page_size,
-      total_count: total_count,
-      total_pages: total_pages
-    }
+    from(r in Raffle)
+    |> maybe_filter_by_status(opts[:status])
+    |> order_by([r], desc: r.id)
+    |> Pagination.paginate_with_preload(:creator, opts)
   end
 
   @spec get_raffle(Ecto.UUID.t()) :: {:ok, Raffle.t()} | {:error, :not_found}
@@ -112,4 +83,154 @@ defmodule Sortio.Raffles do
   end
 
   defp maybe_filter_by_status(query, _), do: query
+
+  @spec join_raffle(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, Participant.t()}
+          | {:error, Ecto.Changeset.t()}
+          | {:error, :not_found}
+          | {:error, :raffle_closed}
+          | {:error, :already_participating}
+  @doc """
+  Adds a user as a participant to a raffle.
+
+  ## Parameters
+    - raffle_id: The UUID of the raffle to join
+    - user_id: The UUID of the user joining the raffle
+
+  ## Returns
+    - {:ok, participant} if successful
+    - {:error, changeset} if validation fails
+    - {:error, :already_participating} if user already joined
+    - {:error, :not_found} if raffle doesn't exist
+    - {:error, :raffle_closed} if raffle is closed
+  """
+  def join_raffle(raffle_id, user_id) do
+    with {:ok, raffle} <- get_raffle(raffle_id),
+         :ok <- validate_raffle_open(raffle) do
+      result =
+        ContextHelpers.with_logging(
+          fn ->
+            %Participant{}
+            |> Participant.create_changeset(%{raffle_id: raffle_id, user_id: user_id})
+            |> Repo.insert()
+          end,
+          "User joined raffle successfully",
+          "Failed to join raffle",
+          raffle_id: raffle_id,
+          user_id: user_id
+        )
+
+      case result do
+        {:error, %Ecto.Changeset{errors: errors} = changeset} ->
+          # Check if it's a unique constraint violation
+          if Keyword.has_key?(errors, :user_id) do
+            {:error, :already_participating}
+          else
+            {:error, changeset}
+          end
+
+        other ->
+          other
+      end
+    end
+  end
+
+  @spec validate_raffle_open(Raffle.t()) :: :ok | {:error, :raffle_closed}
+  defp validate_raffle_open(%Raffle{status: "open"}), do: :ok
+  defp validate_raffle_open(_raffle), do: {:error, :raffle_closed}
+
+  @spec leave_raffle(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, Participant.t()} | {:error, :participant_not_found}
+  @doc """
+  Removes a user from a raffle's participants.
+
+  ## Parameters
+    - raffle_id: The UUID of the raffle to leave
+    - user_id: The UUID of the user leaving the raffle
+
+  ## Returns
+    - {:ok, participant} if successful
+    - {:error, :participant_not_found} if participation doesn't exist
+  """
+  def leave_raffle(raffle_id, user_id) do
+    query =
+      from(p in Participant,
+        where: p.raffle_id == ^raffle_id and p.user_id == ^user_id
+      )
+
+    case Repo.one(query) do
+      nil ->
+        {:error, :participant_not_found}
+
+      participant ->
+        ContextHelpers.with_logging(
+          fn -> Repo.delete(participant) end,
+          "User left raffle successfully",
+          "Failed to leave raffle",
+          raffle_id: raffle_id,
+          user_id: user_id
+        )
+    end
+  end
+
+  @type participant_pagination_result :: Pagination.pagination_result(Participant.t())
+
+  @spec list_participants(Ecto.UUID.t(), keyword()) :: participant_pagination_result()
+  @doc """
+  Lists all participants for a given raffle with pagination.
+
+  ## Parameters
+    - raffle_id: The UUID of the raffle
+    - opts: Keyword list with pagination options
+      - :page - The page number (default: 1)
+      - :page_size - Number of items per page (default: 20, max: 100)
+
+  ## Returns
+    - Paginated result with participants and pagination metadata
+  """
+  def list_participants(raffle_id, opts \\ []) do
+    from(p in Participant,
+      where: p.raffle_id == ^raffle_id,
+      order_by: [desc: p.id]
+    )
+    |> Pagination.paginate_with_preload(:user, opts)
+  end
+
+  @spec get_participant_count(Ecto.UUID.t()) :: non_neg_integer()
+  @doc """
+  Returns the count of participants for a raffle.
+
+  ## Parameters
+    - raffle_id: The UUID of the raffle
+
+  ## Returns
+    - The number of participants
+  """
+  def get_participant_count(raffle_id) do
+    from(p in Participant,
+      where: p.raffle_id == ^raffle_id,
+      select: count(p.id)
+    )
+    |> Repo.one()
+  end
+
+  @spec user_participating?(Ecto.UUID.t(), Ecto.UUID.t()) :: boolean()
+  @doc """
+  Checks if a user is participating in a raffle.
+
+  ## Parameters
+    - raffle_id: The UUID of the raffle
+    - user_id: The UUID of the user
+
+  ## Returns
+    - true if user is participating, false otherwise
+  """
+  def user_participating?(raffle_id, user_id) do
+    query =
+      from(p in Participant,
+        where: p.raffle_id == ^raffle_id and p.user_id == ^user_id
+      )
+
+    Repo.exists?(query)
+  end
 end
