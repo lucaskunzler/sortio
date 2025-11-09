@@ -24,6 +24,8 @@ defmodule Sortio.Accounts.User do
     field(:password, :string, virtual: true, redact: true)
 
     timestamps(type: :utc_datetime)
+
+    has_many(:raffles, Sortio.Raffles.Raffle, foreign_key: :creator_id)
   end
 
   @doc """

@@ -1,0 +1,40 @@
+defmodule Sortio.ContextHelpers do
+  @moduledoc """
+  Shared helper functions for context modules.
+
+  Provides common patterns for logging and error handling across
+  different context modules.
+  """
+
+  require Logger
+
+  @doc """
+  Wraps a repository operation with success/error logging.
+
+  ## Parameters
+    - operation: A function that returns {:ok, result} or {:error, changeset}
+    - success_message: Log message for successful operation
+    - error_message: Log message for failed operation
+    - metadata: Keyword list of additional metadata to log
+
+  ## Examples
+
+      with_logging(
+        fn -> Repo.insert(changeset) end,
+        "User created successfully",
+        "User creation failed",
+        user_id: user.id
+      )
+  """
+  def with_logging(operation, success_message, error_message, metadata \\ []) do
+    case operation.() do
+      {:ok, result} ->
+        Logger.info(success_message, metadata)
+        {:ok, result}
+
+      {:error, changeset} ->
+        Logger.warning(error_message, Keyword.merge(metadata, errors: inspect(changeset.errors)))
+        {:error, changeset}
+    end
+  end
+end
