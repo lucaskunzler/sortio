@@ -15,8 +15,8 @@ defmodule Sortio.Accounts.User do
           raffles: [Sortio.Raffles.Raffle.t()] | Ecto.Association.NotLoaded.t()
         }
 
-  @primary_key {:id, :binary_id, autogenerate: true}
-  @foreign_key_type :binary_id
+  @primary_key {:id, Uniq.UUID, autogenerate: true, version: 7}
+  @foreign_key_type Uniq.UUID
 
   schema "users" do
     field(:name, :string)
@@ -24,7 +24,7 @@ defmodule Sortio.Accounts.User do
     field(:password_hash, :string)
     field(:password, :string, virtual: true, redact: true)
 
-    timestamps(type: :utc_datetime)
+    timestamps(type: :utc_datetime_usec)
 
     has_many(:raffles, Sortio.Raffles.Raffle, foreign_key: :creator_id)
   end
@@ -36,9 +36,16 @@ defmodule Sortio.Accounts.User do
     user
     |> cast(attrs, [:name, :email, :password])
     |> validate_required([:name, :email, :password])
+    |> validate_name()
     |> validate_email()
     |> validate_password()
     |> put_password_hash()
+  end
+
+  defp validate_name(changeset) do
+    changeset
+    |> validate_required([:name])
+    |> validate_length(:name, min: 1, max: 255, message: "must be between 1 and 255 characters")
   end
 
   defp validate_email(changeset) do

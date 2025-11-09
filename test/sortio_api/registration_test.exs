@@ -146,7 +146,7 @@ defmodule SortioApi.RegistrationTest do
       assert body["error"]
     end
 
-    test "extremely long name is caught by database constraint" do
+    test "extremely long name returns 422" do
       # Generate a name longer than typical database limits (e.g., 255 chars)
       long_name = String.duplicate("a", 300)
 
@@ -156,11 +156,13 @@ defmodule SortioApi.RegistrationTest do
         "password" => "password123"
       }
 
-      # Database constraint will catch this and raise an error
-      # In production, this should be caught by application-level validation
-      assert_raise Plug.Conn.WrapperError, fn ->
-        make_request("/users", :post, Jason.encode!(params))
-      end
+      conn = make_request("/users", :post, Jason.encode!(params))
+
+      assert conn.status == 422
+
+      body = Jason.decode!(conn.resp_body)
+      assert body["error"]
+      assert String.contains?(String.downcase(body["error"]), "name")
     end
 
     test "extremely long email returns 422" do

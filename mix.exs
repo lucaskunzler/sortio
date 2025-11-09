@@ -32,6 +32,7 @@ defmodule Sortio.MixProject do
       {:postgrex, "~> 0.21"},
       {:bcrypt_elixir, "~> 3.3"},
       {:guardian, "~> 2.4"},
+      {:uniq, "~> 0.6"},
 
       # Dev dependencies
       {:credo, "~> 1.0", only: [:dev, :test], runtime: false},

@@ -22,7 +22,8 @@ defmodule Sortio.Raffles do
     query =
       Raffle
       |> maybe_filter_by_status(opts[:status])
-      |> order_by([r], desc: r.inserted_at)
+      # UUIDv7 IDs are time-sorted, so sorting by ID is faster (uses PK index)
+      |> order_by([r], desc: r.id)
 
     total_count = Repo.aggregate(query, :count, :id)
     total_pages = ceil(total_count / page_size)

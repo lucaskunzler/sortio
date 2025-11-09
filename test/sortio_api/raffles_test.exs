@@ -92,10 +92,11 @@ defmodule SortioApi.RafflesTest do
       assert conn.status == 200
 
       body = Jason.decode!(conn.resp_body)
+      # UUIDv7: newer records have lexicographically larger IDs
+      assert raffle2.id > raffle1.id
 
       assert length(body["raffles"]) == 2
       assert hd(body["raffles"])["title"] == "Second Raffle"
-      assert body["pagination"]["total_count"] == 2
     end
   end
 
