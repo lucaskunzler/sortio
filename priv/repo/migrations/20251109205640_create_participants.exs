@@ -10,7 +10,6 @@ defmodule Sortio.Repo.Migrations.CreateParticipants do
     end
 
     create(index(:participants, [:user_id]))
-    create(index(:participants, [:raffle_id]))
     create(unique_index(:participants, [:user_id, :raffle_id]))
   end
 end

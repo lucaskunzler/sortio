@@ -42,4 +42,20 @@ defmodule SortioApi.Views.ParticipantView do
   def render_participants(participants) when is_list(participants) do
     Enum.map(participants, &render_participant/1)
   end
+
+  @spec render_paginated(Sortio.Raffles.participant_pagination_result()) :: map()
+  @doc """
+  Renders paginated participant response.
+  """
+  def render_paginated(result) do
+    %{
+      participants: render_participants(result.entries),
+      pagination: %{
+        page: result.page,
+        page_size: result.page_size,
+        total_count: result.total_count,
+        total_pages: result.total_pages
+      }
+    }
+  end
 end

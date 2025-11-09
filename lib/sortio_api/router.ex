@@ -84,26 +84,26 @@ defmodule SortioApi.Router do
   end
 
   # Participant endpoints - Public
-  get "/raffles/:id/participants" do
-    ParticipantController.list(conn, id)
+  get "/raffles/:raffle_id/participants" do
+    ParticipantController.list(conn, raffle_id)
   end
 
   # Participant endpoints - Authenticated
-  post "/raffles/:id/join" do
+  post "/raffles/:raffle_id/participants" do
     conn
     |> AuthenticationHelpers.with_authentication()
     |> case do
       %{halted: true} = conn -> conn
-      conn -> ParticipantController.join(conn, id)
+      conn -> ParticipantController.create(conn, raffle_id)
     end
   end
 
-  delete "/raffles/:id/leave" do
+  delete "/raffles/:raffle_id/participants/me" do
     conn
     |> AuthenticationHelpers.with_authentication()
     |> case do
       %{halted: true} = conn -> conn
-      conn -> ParticipantController.leave(conn, id)
+      conn -> ParticipantController.delete(conn, raffle_id)
     end
   end
 
