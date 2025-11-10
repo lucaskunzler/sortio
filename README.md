@@ -63,16 +63,17 @@ Server runs on `http://localhost:4000`
 
 ### Register & Login
 ```bash
-# Register
+# Register (returns token for immediate use)
 curl -X POST http://localhost:4000/register \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"secret123","name":"John Doe"}'
+# Returns: {"token": "eyJhbGc...", "user": {...}}
 
 # Login
 curl -X POST http://localhost:4000/login \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"secret123"}'
-# Returns: {"token": "eyJhbGc..."}
+# Returns: {"token": "eyJhbGc...", "user": {...}}
 ```
 
 ### Create & Manage Raffle
