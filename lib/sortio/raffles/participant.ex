@@ -9,14 +9,14 @@ defmodule Sortio.Raffles.Participant do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @primary_key {:id, :binary_id, autogenerate: true}
-  @foreign_key_type :binary_id
+  @primary_key {:id, Uniq.UUID, autogenerate: true, version: 7}
+  @foreign_key_type Uniq.UUID
 
   schema "participants" do
     belongs_to(:user, Sortio.Accounts.User, foreign_key: :user_id)
     belongs_to(:raffle, Sortio.Raffles.Raffle, foreign_key: :raffle_id)
 
-    timestamps()
+    timestamps(type: :utc_datetime_usec)
   end
 
   @type t :: %__MODULE__{

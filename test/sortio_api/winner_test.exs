@@ -22,16 +22,16 @@ defmodule SortioApi.WinnerTest do
       assert body["error"] == "Raffle not found"
     end
 
-    test "returns 404 when raffle has not been drawn yet" do
+    test "returns 422 when raffle has not been drawn yet" do
       future_date = DateTime.add(DateTime.utc_now(), 3600, :second)
       raffle = insert(:raffle, status: "open", draw_date: future_date)
 
       conn = make_request("/raffles/#{raffle.id}/winner", :get)
 
-      assert conn.status == 404
+      assert conn.status == 422
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] == "Draw has not occurred yet"
+      assert body["error"] == "Raffle has not been drawn yet"
     end
 
     test "returns 404 when raffle is in drawing status" do
@@ -39,10 +39,10 @@ defmodule SortioApi.WinnerTest do
 
       conn = make_request("/raffles/#{raffle.id}/winner", :get)
 
-      assert conn.status == 404
+      assert conn.status == 422
 
       body = Jason.decode!(conn.resp_body)
-      assert body["error"] == "Draw has not occurred yet"
+      assert body["error"] == "Raffle has not been drawn yet"
     end
 
     test "returns winner info when raffle has been drawn with winner" do
@@ -62,6 +62,7 @@ defmodule SortioApi.WinnerTest do
       assert conn.status == 200
 
       body = Jason.decode!(conn.resp_body)
+
       assert body["raffle_id"] == raffle.id
       assert body["raffle_title"] == "Big Prize Raffle"
       assert body["winner"]["id"] == winner_user.id
