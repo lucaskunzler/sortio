@@ -5,9 +5,14 @@
 - Draw from a custom list
 
 ## Scaling
+
 - Cursor-based pagination
-- Batch writes
-- DB sharding
+Current implementation is O(n) for the worst case, cursor-based pagination is O(1)
+- Cache participant size to avoid O(N) COUNT() queries.
+- The random draw is made with RANDOM() which is O(n).
+This is fine up to tens of thousands, if we reach millions DB will crash. Refactor to be O(1) using reservoir sampling algorithm
+- Password hashing is intentionally slow. We can use workers to offload CPU loads and do batch writes
+- Database sharding (e.g. for huge raffles)
 
 
 ## Not implemented but needed for PROD
