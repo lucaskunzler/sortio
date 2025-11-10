@@ -9,25 +9,6 @@ A minimal raffle/lottery management API built with Elixir and Plug.
 - **Participant System**: Join/leave raffles with pagination support
 - **Automatic Winner Drawing**: Background job draws winners when raffle closes
 - **RESTful API**: Clean REST endpoints with status filtering and pagination
-- **API Documentation**: Interactive Swagger UI documentation
-
-## Architecture
-
-```
-├── lib/
-│   ├── sortio/                   # Core business logic
-│   │   ├── accounts/             # User management
-│   │   ├── raffles/              # Raffle & participant logic
-│   │   ├── workers/              # Oban background jobs
-│   │   └── repo.ex               # Ecto repository
-│   └── sortio_api/               # HTTP layer
-│       ├── controllers/          # Request handlers
-│       ├── views/                # Response serializers
-│       ├── plugs/                # Middleware
-│       └── router.ex             # Route definitions
-```
-
-**Tech Stack**: Elixir, Plug, Ecto, PostgreSQL, Guardian (JWT), Oban (jobs)
 
 ## Setup
 
@@ -50,6 +31,11 @@ mix ecto.create
 mix ecto.migrate
 ```
 
+## Test
+
+```bash
+mix test
+```
 ## Run
 
 Start the server:
@@ -61,7 +47,9 @@ Server runs on `http://localhost:4000`
 
 ### Quick Demo
 
-Run `./demo.sh` to see an automated demo (creates 10 users, a raffle, and draws a winner in a few seconds).
+Run `./demo.sh` to see an automated demo (creates users, a raffle, and draws a winner in a few seconds).
+
+https://github.com/user-attachments/assets/2a2d75a0-b145-4498-acb5-e908eb1e5f34
 
 ## Example Usage
 
@@ -96,11 +84,4 @@ curl http://localhost:4000/raffles
 # Join raffle (authenticated)
 curl -X POST http://localhost:4000/raffles/RAFFLE_ID/participants \
   -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-## Testing
-
-Run tests:
-```bash
-mix test
 ```
