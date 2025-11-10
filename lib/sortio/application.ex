@@ -12,6 +12,7 @@ defmodule Sortio.Application do
 
     children = [
       Sortio.Repo,
+      {Oban, Application.fetch_env!(:sortio, Oban)},
       {Plug.Cowboy, scheme: :http, plug: SortioApi.Router, options: [port: port]}
     ]
 

@@ -150,9 +150,12 @@ defmodule SortioApi.RafflesTest do
     end
 
     test "returns 201 with valid data", %{token1: token1} do
+      future_date = DateTime.add(DateTime.utc_now(), 3600, :second) |> DateTime.to_iso8601()
+
       params = %{
         "title" => "New Raffle",
-        "description" => "Great raffle description"
+        "description" => "Great raffle description",
+        "draw_date" => future_date
       }
 
       conn = make_authenticated_request("/raffles", :post, token1, Jason.encode!(params))
@@ -169,9 +172,12 @@ defmodule SortioApi.RafflesTest do
     end
 
     test "associates with current_user as creator", %{token1: token1, user1: user1} do
+      future_date = DateTime.add(DateTime.utc_now(), 3600, :second) |> DateTime.to_iso8601()
+
       params = %{
         "title" => "User Raffle",
-        "description" => "Test"
+        "description" => "Test",
+        "draw_date" => future_date
       }
 
       conn = make_authenticated_request("/raffles", :post, token1, Jason.encode!(params))

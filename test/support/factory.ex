@@ -16,19 +16,34 @@ defmodule Sortio.Factory do
     }
   end
 
+  def participant_factory do
+    %Participant{
+      user: build(:user),
+      raffle: build(:raffle)
+    }
+  end
+
   def raffle_factory do
     %Raffle{
       title: sequence(:title, &"Test Raffle #{&1}"),
       description: "Test description",
       status: "open",
+      draw_date: DateTime.add(DateTime.utc_now(), 60, :second),
       creator: build(:user)
     }
   end
 
-  def participant_factory do
-    %Participant{
-      user: build(:user),
-      raffle: build(:raffle)
+  def drawn_raffle_factory do
+    winner = build(:user)
+
+    %Raffle{
+      title: sequence(:title, &"Drawn Raffle #{&1}"),
+      description: "This raffle has been drawn",
+      status: "drawn",
+      draw_date: DateTime.add(DateTime.utc_now(), -3600, :second),
+      drawn_at: DateTime.utc_now(),
+      winner: winner,
+      creator: build(:user)
     }
   end
 end

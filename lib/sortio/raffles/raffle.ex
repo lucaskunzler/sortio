@@ -15,8 +15,11 @@ defmodule Sortio.Raffles.Raffle do
           description: String.t() | nil,
           status: String.t(),
           draw_date: DateTime.t() | nil,
+          winner_id: Ecto.UUID.t() | nil,
+          drawn_at: DateTime.t() | nil,
           creator_id: Ecto.UUID.t(),
           creator: Sortio.Accounts.User.t() | Ecto.Association.NotLoaded.t(),
+          winner: Sortio.Accounts.User.t() | Ecto.Association.NotLoaded.t() | nil,
           inserted_at: DateTime.t(),
           updated_at: DateTime.t()
         }
@@ -33,9 +36,11 @@ defmodule Sortio.Raffles.Raffle do
     field(:title, :string)
     field(:description, :string)
     field(:status, :string)
-    field(:draw_date, :utc_datetime)
+    field(:draw_date, :utc_datetime_usec)
+    field(:drawn_at, :utc_datetime_usec)
 
     belongs_to(:creator, Sortio.Accounts.User, foreign_key: :creator_id)
+    belongs_to(:winner, Sortio.Accounts.User, foreign_key: :winner_id)
 
     has_many(:participants, Sortio.Raffles.Participant)
 
@@ -53,14 +58,14 @@ defmodule Sortio.Raffles.Raffle do
   ## Validations
     - title: required, min 3 chars, max 100 chars
     - description: optional, max 1000 chars
-    - draw_date: optional, must be in future if provided
+    - draw_date: required, must be in future
     - status: defaults to "open"
     - creator_id: set by system
   """
   def create_changeset(raffle, attrs, creator_id) do
     raffle
     |> cast(attrs, [:title, :description, :draw_date])
-    |> validate_required([:title])
+    |> validate_required([:title, :draw_date])
     |> apply_common_validations()
     |> put_change(:status, "open")
     |> put_change(:creator_id, creator_id)
@@ -89,6 +94,26 @@ defmodule Sortio.Raffles.Raffle do
     |> validate_inclusion(:status, @valid_statuses)
   end
 
+  @doc """
+  Creates a changeset for drawing a winner.
+
+  ## Parameters
+    - raffle: The raffle struct
+    - winner_id: The UUID of the winner (or nil if no participants)
+
+  ## Changes
+    - Sets status to "drawn"
+    - Sets winner_id
+    - Sets drawn_at to current timestamp
+  """
+  def draw_changeset(raffle, winner_id) do
+    raffle
+    |> cast(%{}, [])
+    |> put_change(:status, "drawn")
+    |> put_change(:winner_id, winner_id)
+    |> put_change(:drawn_at, DateTime.utc_now())
+  end
+
   defp apply_common_validations(changeset) do
     changeset
     |> validate_length(:title, min: @title_min_length, max: @title_max_length)
@@ -98,12 +123,12 @@ defmodule Sortio.Raffles.Raffle do
 
   defp validate_future_date(changeset, field) do
     validate_change(changeset, field, fn ^field, value ->
-      if nil_or_future_date?(value),
+      if future_date?(value),
         do: [],
-        else: [{field, "If a date is set it must be in the future"}]
+        else: [{field, "must be in the future"}]
     end)
   end
 
-  defp nil_or_future_date?(nil), do: true
-  defp nil_or_future_date?(date), do: DateTime.compare(date, DateTime.utc_now()) == :gt
+  defp future_date?(nil), do: false
+  defp future_date?(date), do: DateTime.compare(date, DateTime.utc_now()) == :gt
 end

@@ -112,6 +112,9 @@ defmodule SortioApi.Controllers.ParticipantController do
       :raffle_closed ->
         {"Cannot join a closed raffle", 422}
 
+      :draw_date_passed ->
+        {"Cannot join raffle after draw date has passed", 422}
+
       :already_participating ->
         {"User already joined this raffle", 409}
 

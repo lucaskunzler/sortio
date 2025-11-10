@@ -9,7 +9,13 @@ defmodule SortioApi.Router do
   """
   use Plug.Router
 
-  alias SortioApi.Controllers.{AuthController, RaffleController, ParticipantController}
+  alias SortioApi.Controllers.{
+    AuthController,
+    RaffleController,
+    ParticipantController,
+    WinnerController
+  }
+
   alias SortioApi.Helpers.{ResponseHelpers, AuthenticationHelpers}
 
   plug(Plug.Logger)
@@ -53,6 +59,10 @@ defmodule SortioApi.Router do
 
   get "/raffles/:id" do
     RaffleController.show(conn, id)
+  end
+
+  get "/raffles/:id/winner" do
+    WinnerController.show(conn, id)
   end
 
   # Raffle endpoints - Authenticated

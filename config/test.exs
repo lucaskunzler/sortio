@@ -18,3 +18,9 @@ config :logger, level: :error
 config :bcrypt_elixir, :log_rounds, 4
 
 config :sortio, port: 4001
+
+config :sortio, Oban,
+  repo: Sortio.Repo,
+  testing: :manual,
+  queues: false,
+  plugins: false

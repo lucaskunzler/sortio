@@ -35,16 +35,30 @@ defmodule Sortio.Raffles do
   @spec create_raffle(map(), Ecto.UUID.t()) ::
           {:ok, Raffle.t()} | {:error, Ecto.Changeset.t()}
   def create_raffle(attrs, creator_id) do
-    ContextHelpers.with_logging(
-      fn ->
-        %Raffle{}
-        |> Raffle.create_changeset(attrs, creator_id)
-        |> Repo.insert()
-      end,
-      "Raffle created successfully",
-      "Raffle creation failed",
-      creator_id: creator_id
-    )
+    result =
+      ContextHelpers.with_logging(
+        fn ->
+          %Raffle{}
+          |> Raffle.create_changeset(attrs, creator_id)
+          |> Repo.insert()
+        end,
+        "Raffle created successfully",
+        "Raffle creation failed",
+        creator_id: creator_id
+      )
+
+    case result do
+      {:ok, raffle} ->
+        # Schedule DrawWorker job at the raffle's draw_date
+        %{raffle_id: raffle.id}
+        |> Sortio.Workers.DrawWorker.new(scheduled_at: raffle.draw_date)
+        |> Oban.insert()
+
+        {:ok, raffle}
+
+      error ->
+        error
+    end
   end
 
   @spec update_raffle(Raffle.t(), map()) ::
@@ -89,6 +103,7 @@ defmodule Sortio.Raffles do
           | {:error, Ecto.Changeset.t()}
           | {:error, :not_found}
           | {:error, :raffle_closed}
+          | {:error, :draw_date_passed}
           | {:error, :already_participating}
   @doc """
   Adds a user as a participant to a raffle.
@@ -135,8 +150,14 @@ defmodule Sortio.Raffles do
     end
   end
 
-  @spec validate_raffle_open(Raffle.t()) :: :ok | {:error, :raffle_closed}
-  defp validate_raffle_open(%Raffle{status: "open"}), do: :ok
+  defp validate_raffle_open(%Raffle{status: "open", draw_date: draw_date}) do
+    if DateTime.compare(DateTime.utc_now(), draw_date) == :lt do
+      :ok
+    else
+      {:error, :draw_date_passed}
+    end
+  end
+
   defp validate_raffle_open(_raffle), do: {:error, :raffle_closed}
 
   @spec leave_raffle(Ecto.UUID.t(), Ecto.UUID.t()) ::
@@ -232,5 +253,53 @@ defmodule Sortio.Raffles do
       )
 
     Repo.exists?(query)
+  end
+
+  @doc """
+  Draws a random winner for a raffle using atomic status update.
+
+  Only raffles with status "open" can be drawn. Uses atomic UPDATE
+  to prevent concurrent draws - only one process can successfully
+  change status from "open" to "drawing".
+
+  ## Returns
+    - {:ok, raffle} if winner drawn successfully
+    - {:ok, :already_claimed} if raffle already drawn or doesn't exist
+    - {:error, changeset} if update fails
+  """
+  @spec draw_winner(Ecto.UUID.t()) ::
+          {:ok, Raffle.t()} | {:ok, :already_claimed} | {:error, term()}
+  def draw_winner(raffle_id) do
+    claimed_count =
+      from(r in Raffle,
+        where: r.id == ^raffle_id and r.status == "open"
+      )
+      |> Repo.update_all(set: [status: "drawing"])
+
+    case claimed_count do
+      {0, _} ->
+        case Repo.get(Raffle, raffle_id) do
+          nil -> {:error, :not_found}
+          _raffle -> {:ok, :already_claimed}
+        end
+
+      {1, _} ->
+        raffle = Repo.get!(Raffle, raffle_id)
+        winner_id = get_random_participant_user_id(raffle_id)
+
+        raffle
+        |> Raffle.draw_changeset(winner_id)
+        |> Repo.update()
+    end
+  end
+
+  defp get_random_participant_user_id(raffle_id) do
+    from(p in Participant,
+      where: p.raffle_id == ^raffle_id,
+      order_by: fragment("RANDOM()"),
+      limit: 1,
+      select: p.user_id
+    )
+    |> Repo.one()
   end
 end
