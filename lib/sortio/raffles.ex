@@ -33,32 +33,33 @@ defmodule Sortio.Raffles do
   end
 
   @spec create_raffle(map(), Ecto.UUID.t()) ::
-          {:ok, Raffle.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Raffle.t()} | {:error, Ecto.Changeset.t()} | {:error, term()}
   def create_raffle(attrs, creator_id) do
-    result =
-      ContextHelpers.with_logging(
-        fn ->
-          %Raffle{}
-          |> Raffle.create_changeset(attrs, creator_id)
-          |> Repo.insert()
-        end,
-        "Raffle created successfully",
-        "Raffle creation failed",
-        creator_id: creator_id
-      )
+    ContextHelpers.with_logging(
+      fn ->
+        Repo.transaction(fn ->
+          with {:ok, raffle} <-
+                 %Raffle{}
+                 |> Raffle.create_changeset(attrs, creator_id)
+                 |> Repo.insert(),
+               {:ok, _job} <-
+                 %{raffle_id: raffle.id}
+                 |> Sortio.Workers.DrawWorker.new(scheduled_at: raffle.draw_date)
+                 |> Oban.insert() do
+            raffle
+          else
+            {:error, %Ecto.Changeset{} = changeset} ->
+              Repo.rollback(changeset)
 
-    case result do
-      {:ok, raffle} ->
-        # Schedule DrawWorker job at the raffle's draw_date
-        %{raffle_id: raffle.id}
-        |> Sortio.Workers.DrawWorker.new(scheduled_at: raffle.draw_date)
-        |> Oban.insert()
-
-        {:ok, raffle}
-
-      error ->
-        error
-    end
+            {:error, reason} ->
+              Repo.rollback(reason)
+          end
+        end)
+      end,
+      "Raffle created successfully",
+      "Raffle creation failed",
+      creator_id: creator_id
+    )
   end
 
   @spec update_raffle(Raffle.t(), map()) ::
@@ -284,7 +285,7 @@ defmodule Sortio.Raffles do
         end
 
       {1, _} ->
-        raffle = Repo.get!(Raffle, raffle_id)
+        raffle = Repo.get(Raffle, raffle_id)
         winner_id = get_random_participant_user_id(raffle_id)
 
         raffle
