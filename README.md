@@ -1,45 +1,104 @@
 # Sortio
 
-Minimal Plug-based API.
+A minimal raffle/lottery management API built with Elixir and Plug.
+
+## Features
+
+- **User Management**: Register, login with JWT authentication
+- **Raffle Management**: Create, update, delete raffles with owner permissions
+- **Participant System**: Join/leave raffles with pagination support
+- **Automatic Winner Drawing**: Background job draws winners when raffle closes
+- **RESTful API**: Clean REST endpoints with status filtering and pagination
+- **API Documentation**: Interactive Swagger UI documentation
+
+## Architecture
+
+```
+├── lib/
+│   ├── sortio/                   # Core business logic
+│   │   ├── accounts/             # User management
+│   │   ├── raffles/              # Raffle & participant logic
+│   │   ├── workers/              # Oban background jobs
+│   │   └── repo.ex               # Ecto repository
+│   └── sortio_api/               # HTTP layer
+│       ├── controllers/          # Request handlers
+│       ├── views/                # Response serializers
+│       ├── plugs/                # Middleware
+│       └── router.ex             # Route definitions
+```
+
+**Tech Stack**: Elixir, Plug, Ecto, PostgreSQL, Guardian (JWT), Oban (jobs)
 
 ## Setup
 
+### Prerequisites
+- Elixir 1.19+
+- PostgreSQL
+
+### Installation
+
+1. Install dependencies:
 ```bash
 mix deps.get
 ```
 
+2. Configure dev and test database on `config/dev.exs` and `config/test.exs`
+
+3. Create and migrate database:
+```bash
+mix ecto.create
+mix ecto.migrate
+```
+
 ## Run
 
+Start the server:
 ```bash
 mix run --no-halt
 ```
 
-Server starts on `http://localhost:4000`
+Server runs on `http://localhost:4000`
 
-## Test
+## Example Usage
 
+### Register & Login
+```bash
+# Register
+curl -X POST http://localhost:4000/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"secret123","name":"John Doe"}'
+
+# Login
+curl -X POST http://localhost:4000/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"secret123"}'
+# Returns: {"token": "eyJhbGc..."}
+```
+
+### Create & Manage Raffle
+```bash
+# Create raffle (authenticated)
+curl -X POST http://localhost:4000/raffles \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{"title":"Win a Prize","description":"Enter to win","draw_date":"2025-12-31T23:59:59Z"}'
+
+# List raffles (public, supports ?status=active&page=1&limit=10)
+curl http://localhost:4000/raffles
+
+# Join raffle (authenticated)
+curl -X POST http://localhost:4000/raffles/RAFFLE_ID/participants \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+## Testing
+
+Run tests:
 ```bash
 mix test
 ```
 
-## Endpoints
-
-### Health
-- `GET /health` - Health check
-
-### Authentication
-- `POST /register` - Register new user
-- `POST /login` - Login and receive JWT token
-
-### Users
-- `GET /me` - Get current user info (authenticated)
-
-### Raffles
-- `GET /raffles` - List raffles (supports pagination and status filtering)
-- `GET /raffles/:id` - Get raffle details
-- `POST /raffles` - Create raffle (authenticated)
-- `PUT /raffles/:id` - Update raffle (authenticated, owner only)
-- `DELETE /raffles/:id` - Delete raffle (authenticated, owner only)
-- `GET /raffles/:raffle_id/participants` - List raffle participants (paginated)
-- `POST /raffles/:raffle_id/participants` - Join a raffle
-- `DELETE /raffles/:raffle_id/participants/me` - Leave a raffle
+Run with coverage:
+```bash
+MIX_ENV=test mix test --cover
+```

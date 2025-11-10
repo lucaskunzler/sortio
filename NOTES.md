@@ -11,7 +11,7 @@
 - Business logic in presentation layer - Keep router thin, logic in contexts
 - Missing pagination - Unbounded queries exhaust resources at scale
 
-## Not implemented in this POC
+## Not implemented but needed for PROD
 - Email verification
 - Password reset
 - Token expiration and invalidation
