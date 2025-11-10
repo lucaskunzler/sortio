@@ -8,7 +8,7 @@ A minimal raffle/lottery management API built with Elixir and Plug.
 - **Raffle Management**: Create, update, delete raffles with owner permissions
 - **Participant System**: Join/leave raffles with pagination support
 - **Automatic Winner Drawing**: Background job draws winners when raffle closes
-- **RESTful API**: Clean REST endpoints with status filtering and pagination
+- **RESTful API**: REST endpoints with status filtering and pagination
 
 ## Setup
 
