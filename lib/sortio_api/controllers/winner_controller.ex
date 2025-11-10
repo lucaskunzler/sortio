@@ -37,7 +37,7 @@ defmodule SortioApi.Controllers.WinnerController do
         ResponseHelpers.send_error(conn, "Raffle not found", 404)
 
       {:error, :not_drawn} ->
-        ResponseHelpers.send_error(conn, "Draw has not occurred yet", 404)
+        ResponseHelpers.send_error(conn, "Raffle has not been drawn yet", 422)
     end
   end
 
