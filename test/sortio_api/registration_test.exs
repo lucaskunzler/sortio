@@ -7,7 +7,7 @@ defmodule SortioApi.RegistrationTest do
   end
 
   describe "POST /register/" do
-    test "valid registration returns 201 with user data" do
+    test "valid registration returns 201 with user data and token" do
       params = %{
         "name" => "Test User",
         "email" => "test@example.com",
@@ -20,6 +20,8 @@ defmodule SortioApi.RegistrationTest do
 
       body = Jason.decode!(conn.resp_body)
 
+      assert body["token"]
+      assert is_binary(body["token"])
       assert body["user"]["name"] == "Test User"
       assert body["user"]["email"] == "test@example.com"
       assert Map.has_key?(body["user"], "id")
@@ -182,6 +184,29 @@ defmodule SortioApi.RegistrationTest do
       body = Jason.decode!(conn.resp_body)
       assert body["error"]
       assert String.contains?(String.downcase(body["error"]), "email")
+    end
+
+    test "returned token can be used to access protected endpoints" do
+      params = %{
+        "name" => "New User",
+        "email" => "newuser@example.com",
+        "password" => "password123"
+      }
+
+      # Register and get token
+      register_conn = make_request("/register", :post, Jason.encode!(params))
+      assert register_conn.status == 201
+
+      register_body = Jason.decode!(register_conn.resp_body)
+      token = register_body["token"]
+
+      # Use token to access /me endpoint
+      me_conn = make_authenticated_request("/me", :get, token)
+      assert me_conn.status == 200
+
+      me_body = Jason.decode!(me_conn.resp_body)
+      assert me_body["user"]["email"] == "newuser@example.com"
+      assert me_body["user"]["name"] == "New User"
     end
   end
 end

@@ -15,14 +15,18 @@ defmodule SortioApi.Controllers.AuthController do
 
   @spec register(Plug.Conn.t()) :: Plug.Conn.t()
   @doc """
-  POST /register - Register a new user account.
+  POST /register - Register a new user account and return JWT token.
   """
   def register(conn) do
     with {:ok, params} <- validate_registration_params(conn.body_params),
-         {:ok, user} <- Accounts.register_user(params) do
+         {:ok, user} <- Accounts.register_user(params),
+         {:ok, token, _claims} <- Guardian.encode_and_sign(user) do
       ResponseHelpers.send_success(
         conn,
-        %{user: UserView.render_user(user)},
+        %{
+          token: token,
+          user: UserView.render_user(user)
+        },
         201
       )
     else
