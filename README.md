@@ -59,7 +59,13 @@ mix run --no-halt
 
 Server runs on `http://localhost:4000`
 
+### Quick Demo
+
+Run `./demo.sh` to see an automated demo (creates 10 users, a raffle, and draws a winner in a few seconds).
+
 ## Example Usage
+
+See full documentation at [./API.md](API.md)
 
 ### Register & Login
 ```bash
@@ -97,9 +103,4 @@ curl -X POST http://localhost:4000/raffles/RAFFLE_ID/participants \
 Run tests:
 ```bash
 mix test
-```
-
-Run with coverage:
-```bash
-MIX_ENV=test mix test --cover
 ```
