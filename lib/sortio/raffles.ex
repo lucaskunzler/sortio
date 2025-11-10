@@ -63,18 +63,59 @@ defmodule Sortio.Raffles do
   end
 
   @spec update_raffle(Raffle.t(), map()) ::
-          {:ok, Raffle.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Raffle.t()} | {:error, Ecto.Changeset.t()} | {:error, term()}
   def update_raffle(raffle, attrs) do
+    changeset = Raffle.update_changeset(raffle, attrs)
+
     ContextHelpers.with_logging(
-      fn ->
-        raffle
-        |> Raffle.update_changeset(attrs)
-        |> Repo.update()
-      end,
+      fn -> perform_update(raffle, changeset) end,
       "Raffle updated successfully",
       "Raffle update failed",
       raffle_id: raffle.id
     )
+  end
+
+  defp perform_update(raffle, changeset) do
+    changeset
+    |> Ecto.Changeset.changed?(:draw_date)
+    |> case do
+      true -> update_with_rescheduling(raffle, changeset)
+      false -> Repo.update(changeset)
+    end
+  end
+
+  defp update_with_rescheduling(raffle, changeset) do
+    Repo.transaction(fn ->
+      with {:ok, updated_raffle} <- Repo.update(changeset),
+           :ok <- cancel_draw_jobs(raffle.id),
+           {:ok, _job} <- schedule_draw_job(updated_raffle) do
+        updated_raffle
+      else
+        {:error, %Ecto.Changeset{} = changeset} -> Repo.rollback(changeset)
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp schedule_draw_job(raffle) do
+    %{raffle_id: raffle.id}
+    |> Sortio.Workers.DrawWorker.new(scheduled_at: raffle.draw_date)
+    |> Oban.insert()
+  end
+
+  @spec cancel_draw_jobs(Ecto.UUID.t()) :: :ok | {:error, term()}
+  defp cancel_draw_jobs(raffle_id) do
+    # Cancel all scheduled or available DrawWorker jobs for this raffle
+    query =
+      from(j in Oban.Job,
+        where: j.worker == "Sortio.Workers.DrawWorker",
+        where: j.state in ["scheduled", "available"],
+        where: fragment("?->>'raffle_id' = ?", j.args, ^to_string(raffle_id))
+      )
+
+    case Repo.update_all(query, set: [state: "cancelled"]) do
+      {_count, _} -> :ok
+    end
   end
 
   @spec delete_raffle(Raffle.t()) :: {:ok, Raffle.t()} | {:error, Ecto.Changeset.t()}

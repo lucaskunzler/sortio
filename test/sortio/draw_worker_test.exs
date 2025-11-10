@@ -3,6 +3,8 @@ defmodule Sortio.Workers.DrawWorkerTest do
   use Sortio.DataCase
   use Oban.Testing, repo: Sortio.Repo
 
+  require Logger
+
   alias Sortio.Workers.DrawWorker
   alias Sortio.Repo
 
