@@ -1,3 +1,28 @@
+# This list is not exhaustive
+
+## Other possible features
+- On demand draw execution
+- Draw from a custom list
+
+## Scaling
+- Cursor-based pagination
+- Batch writes
+- DB sharding
+
+
+## Not implemented but needed for PROD
+- Raffle state machine validation
+- Email verification
+- Password reset
+- Token expiration and invalidation
+- Refresh tokens
+- Rate limiting on login
+- Account lockout after failed attempts
+- CORS headers (needed for use with frontend apps)
+- Limit number of participants per raffle
+- Soft deletes for participant records
+
+
 ## Common Mistakes Avoided
 - Plain text passwords - Never store, always hash
 - Returning password_hash - Security leak
@@ -10,15 +35,3 @@
 - Missing database indexes - Queries on unindexed columns are slow
 - Business logic in presentation layer - Keep router thin, logic in contexts
 - Missing pagination - Unbounded queries exhaust resources at scale
-
-## Not implemented but needed for PROD
-- Email verification
-- Password reset
-- Token expiration and invalidation
-- Refresh tokens
-- Rate limiting on login
-- Account lockout after failed attempts
-- Cursor-based pagination for scale
-- CORS headers (needed for use with frontend apps)
-- Limit number of participants per raffle
-- Soft deletes for participant records
