@@ -20,3 +20,10 @@ config :logger, level: :debug
 config :bcrypt_elixir, :log_rounds, 4
 
 config :sortio, :port, 4000
+
+config :sortio, Oban,
+  repo: Sortio.Repo,
+  queues: [default: 10, draws: 5],
+  plugins: [
+    Oban.Plugins.Pruner
+  ]

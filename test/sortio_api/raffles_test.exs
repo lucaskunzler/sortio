@@ -8,6 +8,8 @@ defmodule SortioApi.RafflesTest do
   use ExUnit.Case, async: true
   use SortioApi.ConnCase
 
+  import Ecto.Query
+
   alias Sortio.Raffles
 
   # Constants for test dates
@@ -150,9 +152,12 @@ defmodule SortioApi.RafflesTest do
     end
 
     test "returns 201 with valid data", %{token1: token1} do
+      future_date = DateTime.add(DateTime.utc_now(), 3600, :second) |> DateTime.to_iso8601()
+
       params = %{
         "title" => "New Raffle",
-        "description" => "Great raffle description"
+        "description" => "Great raffle description",
+        "draw_date" => future_date
       }
 
       conn = make_authenticated_request("/raffles", :post, token1, Jason.encode!(params))
@@ -169,9 +174,12 @@ defmodule SortioApi.RafflesTest do
     end
 
     test "associates with current_user as creator", %{token1: token1, user1: user1} do
+      future_date = DateTime.add(DateTime.utc_now(), 3600, :second) |> DateTime.to_iso8601()
+
       params = %{
         "title" => "User Raffle",
-        "description" => "Test"
+        "description" => "Test",
+        "draw_date" => future_date
       }
 
       conn = make_authenticated_request("/raffles", :post, token1, Jason.encode!(params))
@@ -423,6 +431,54 @@ defmodule SortioApi.RafflesTest do
 
       body = Jason.decode!(conn.resp_body)
       assert body["error"] == "Raffle not found"
+    end
+
+    test "reschedules draw job when draw_date is updated", %{user1: user1, token1: token1} do
+      original_date = DateTime.add(DateTime.utc_now(), 7200, :second)
+      new_date = DateTime.add(DateTime.utc_now(), 14_400, :second)
+
+      raffle = insert(:raffle, title: "Test Raffle", creator: user1, draw_date: original_date)
+
+      %{raffle_id: raffle.id}
+      |> Sortio.Workers.DrawWorker.new(scheduled_at: original_date)
+      |> Oban.insert!()
+
+      original_jobs =
+        Sortio.Repo.all(
+          from(j in Oban.Job,
+            where: j.worker == "Sortio.Workers.DrawWorker",
+            where: j.state in ["scheduled", "available"],
+            where: fragment("?->>'raffle_id' = ?", j.args, ^to_string(raffle.id))
+          )
+        )
+
+      assert length(original_jobs) == 1
+
+      params = %{
+        "draw_date" => DateTime.to_iso8601(new_date)
+      }
+
+      conn =
+        make_authenticated_request("/raffles/#{raffle.id}", :put, token1, Jason.encode!(params))
+
+      assert conn.status == 200
+
+      all_jobs =
+        Sortio.Repo.all(
+          from(j in Oban.Job,
+            where: j.worker == "Sortio.Workers.DrawWorker",
+            where: fragment("?->>'raffle_id' = ?", j.args, ^to_string(raffle.id))
+          )
+        )
+
+      scheduled_jobs = Enum.filter(all_jobs, fn j -> j.state in ["scheduled", "available"] end)
+      cancelled_jobs = Enum.filter(all_jobs, fn j -> j.state == "cancelled" end)
+
+      assert length(scheduled_jobs) == 1
+      assert length(cancelled_jobs) == 1
+
+      new_job = hd(scheduled_jobs)
+      assert DateTime.compare(new_job.scheduled_at, new_date) == :eq
     end
   end
 

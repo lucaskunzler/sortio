@@ -33,6 +33,7 @@ defmodule Sortio.MixProject do
       {:bcrypt_elixir, "~> 3.3"},
       {:guardian, "~> 2.4"},
       {:uniq, "~> 0.6"},
+      {:oban, "~> 2.20"},
 
       # Dev dependencies
       {:credo, "~> 1.0", only: [:dev, :test], runtime: false},

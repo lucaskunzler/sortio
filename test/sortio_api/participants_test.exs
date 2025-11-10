@@ -315,4 +315,30 @@ defmodule SortioApi.ParticipantsTest do
       assert body["pagination"]["total_count"] == 1
     end
   end
+
+  describe "POST /raffles/:raffle_id/participants - draw_date validation" do
+    test "cannot join raffle after draw_date has passed", %{user1: user1, token2: token2} do
+      past_date = DateTime.add(DateTime.utc_now(), -60, :second)
+      raffle = insert(:raffle, creator: user1, status: "open", draw_date: past_date)
+
+      conn = make_authenticated_request("/raffles/#{raffle.id}/participants", :post, token2)
+
+      assert conn.status == 422
+
+      body = Jason.decode!(conn.resp_body)
+      assert body["error"] == "Cannot join raffle after draw date has passed"
+    end
+
+    test "can join raffle before draw_date", %{user1: user1, token2: token2} do
+      future_date = DateTime.add(DateTime.utc_now(), 3600, :second)
+      raffle = insert(:raffle, creator: user1, status: "open", draw_date: future_date)
+
+      conn = make_authenticated_request("/raffles/#{raffle.id}/participants", :post, token2)
+
+      assert conn.status == 201
+
+      body = Jason.decode!(conn.resp_body)
+      assert body["participant"]["raffle_id"] == raffle.id
+    end
+  end
 end
